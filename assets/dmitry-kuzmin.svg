@@ -1,0 +1,8 @@
+<svg width="320" height="320" viewBox="0 0 320 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="320" rx="56" fill="#151512"/>
+  <circle cx="236" cy="74" r="46" fill="#16645A"/>
+  <circle cx="75" cy="245" r="58" fill="#C76F2E"/>
+  <path d="M66 210C86 142 122 104 176 96C213 91 244 106 265 141C241 129 216 124 190 127C137 134 98 162 66 210Z" fill="#F4F1EA"/>
+  <path d="M69 234C103 182 145 154 195 150C223 148 247 154 267 168C247 209 214 234 168 243C130 251 97 248 69 234Z" fill="#FFFDF8"/>
+  <text x="160" y="183" text-anchor="middle" font-family="Arial, sans-serif" font-size="72" font-weight="800" fill="#151512">DK</text>
+</svg>

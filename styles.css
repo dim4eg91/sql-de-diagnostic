@@ -225,55 +225,42 @@ li {
   font-size: 17px;
 }
 
-.hero-visual {
+.creator-card {
+  display: grid;
+  gap: 14px;
   min-height: 170px;
-  position: relative;
-  overflow: hidden;
+  padding: 18px;
   border: 1px solid rgba(222, 212, 196, 0.9);
   border-radius: 28px;
   background:
-    linear-gradient(135deg, rgba(255, 253, 248, 0.85), rgba(249, 245, 236, 0.65)),
-    repeating-linear-gradient(135deg, rgba(23, 21, 18, 0.04) 0 1px, transparent 1px 12px);
+    linear-gradient(135deg, rgba(255, 253, 248, 0.9), rgba(249, 245, 236, 0.72)),
+    radial-gradient(circle at 100% 0%, rgba(22, 100, 90, 0.14), transparent 12rem);
   box-shadow: var(--shadow);
 }
 
-.hero-visual span {
-  position: absolute;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 92px;
-  min-height: 38px;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--surface);
-  font-family: "JetBrains Mono", monospace;
-  font-size: 12px;
-  font-weight: 700;
+.creator-photo {
+  width: 82px;
+  height: 82px;
+  object-fit: cover;
+  border-radius: 24px;
+  box-shadow: 0 14px 32px rgba(23, 21, 18, 0.14);
 }
 
-.hero-visual span:nth-child(1) {
-  top: 24px;
-  left: 22px;
+.creator-card h2 {
+  margin-bottom: 6px;
+  font-size: 22px;
 }
 
-.hero-visual span:nth-child(2) {
-  top: 64px;
-  right: 22px;
-  color: var(--red);
+.creator-card p:not(.eyebrow) {
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 14px;
 }
 
-.hero-visual span:nth-child(3) {
-  bottom: 28px;
-  left: 30px;
+.creator-card a {
   color: var(--accent);
-}
-
-.hero-visual span:nth-child(4) {
-  right: 22px;
-  bottom: 20px;
-  color: var(--accent-2);
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .workspace {
@@ -641,8 +628,10 @@ ul {
     grid-template-columns: 1fr;
   }
 
-  .hero-visual {
-    min-height: 130px;
+  .creator-card {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    min-height: auto;
   }
 
   .result-panel {
@@ -720,8 +709,26 @@ ul {
     font-size: 15px;
   }
 
-  .hero-visual {
-    display: none;
+  .creator-card {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .creator-photo {
+    width: 62px;
+    height: 62px;
+    border-radius: 18px;
+  }
+
+  .creator-card h2 {
+    font-size: 18px;
+  }
+
+  .creator-card p:not(.eyebrow) {
+    margin-bottom: 8px;
+    font-size: 13px;
   }
 
   .mode-switch,
