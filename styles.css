@@ -498,6 +498,44 @@ ul {
   padding-left: 18px;
 }
 
+.mistake-list {
+  padding-left: 0;
+  list-style: none;
+}
+
+.mistake-item {
+  display: grid;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.mistake-item.clean {
+  color: var(--muted);
+}
+
+.mistake-topic {
+  color: var(--accent);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mistake-item strong {
+  line-height: 1.28;
+}
+
+.mistake-item span {
+  color: var(--ink);
+}
+
+.mistake-item small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .course-card {
   padding: 18px;
   border: 1px solid var(--line);

@@ -521,24 +521,6 @@ spark.sql("select ... group by ...")`,
   },
 };
 
-const resultProfiles = [
-  {
-    min: 78,
-    title: "Хорошая база. Осталось закрыть сложные случаи.",
-    copy: "Главный риск уже не в синтаксисе, а в окнах, датах, CTE, grain и объяснении решения.",
-  },
-  {
-    min: 55,
-    title: "База есть, но есть слабые места.",
-    copy: "Нужна практика на пограничных случаях: NULL, JOIN, агрегации, даты и выбор строки целиком.",
-  },
-  {
-    min: 0,
-    title: "Сначала нужно закрыть базу.",
-    copy: "Начни с JOIN, GROUP BY, NULL, HAVING и простых оконных функций. Сложные задачи без базы дают случайный результат.",
-  },
-];
-
 const courses = {
   sqlFoundation: {
     title: "SQL для аналитиков и инженеров данных",
@@ -673,12 +655,11 @@ function renderQuestion() {
 
 function renderCompletionView() {
   const config = getConfig();
-  const weakTopics = getWeakTopicLabels();
 
   els.progressBar.style.width = "100%";
   els.questionProgress.textContent = `${config.label}-диагностика завершена`;
   els.questionTitle.textContent = config.completeTitle;
-  els.questionSource.textContent = `Слабые зоны: ${weakTopics}`;
+  els.questionSource.textContent = "Разбор ошибок находится в блоке результата";
   els.questionCodeWrap.hidden = true;
   els.answerList.innerHTML = `
     <article class="completion-card">
@@ -849,15 +830,16 @@ function renderLiveResult() {
 }
 
 function renderResult() {
-  const profile = getResultProfile();
-  const studyItems = getStudyItems();
+  const mistakeItems = getMistakeItems();
+  const summary = getResultSummary(mistakeItems);
   const course = getRecommendedCourse();
 
   els.score.textContent = `${state.score}%`;
   els.score.style.setProperty("--score", `${state.score}%`);
-  els.diagnosisTitle.textContent = profile.title;
-  els.diagnosisCopy.textContent = profile.copy;
-  els.studyList.innerHTML = studyItems.map((item) => `<li>${item}</li>`).join("");
+  els.diagnosisTitle.textContent = summary.title;
+  els.diagnosisCopy.textContent = summary.copy;
+  els.studyList.classList.toggle("mistake-list", state.completed);
+  els.studyList.innerHTML = renderMistakeItems(mistakeItems);
   els.courseTitle.textContent = course.title;
   els.courseCopy.textContent = course.copy;
   els.courseLink.href = course.url;
@@ -866,19 +848,67 @@ function renderResult() {
   els.resultStatus.textContent = "Результат не сохраняется. Его можно скопировать.";
 }
 
-function getResultProfile() {
-  if (!state.completed) return resultProfiles[resultProfiles.length - 1];
-  return resultProfiles.find((profile) => state.score >= profile.min);
-}
-
-function getStudyItems() {
+function getResultSummary(mistakes) {
   if (!state.completed) {
-    return [`Ответь на вопросы ${getConfig().label}-диагностики, и здесь появятся конкретные слабые места.`];
+    return {
+      title: "Результат появится после ответов",
+      copy: "Ответ засчитывается только после подтверждения.",
+    };
   }
 
-  return state.weakTopicKeys
-    .flatMap((topic) => getTopicMeta()[topic].study)
-    .slice(0, 6);
+  if (!mistakes.length) {
+    return {
+      title: "Ошибок в этой попытке нет",
+      copy: "Можно переходить к более сложному уровню или пройти второй тест.",
+    };
+  }
+
+  return {
+    title: `Ошибок: ${mistakes.length} из ${state.questions.length}`,
+    copy: "Ниже только вопросы, где был неверный ответ. Общие темы не добавлены.",
+  };
+}
+
+function getMistakeItems() {
+  if (!state.completed) {
+    return [];
+  }
+
+  return state.answers
+    .map((answer, index) => {
+      if (!answer || answer.correct) return null;
+
+      const question = state.questions[index];
+      return {
+        number: index + 1,
+        topic: getTopicMeta()[question.topic].title,
+        title: question.title,
+        selectedText: answer.selectedText,
+        correctText: answer.correctText,
+        explanation: question.explanation,
+      };
+    })
+    .filter(Boolean);
+}
+
+function renderMistakeItems(items) {
+  if (!state.completed) {
+    return `<li>Ответь на вопросы ${escapeHtml(getConfig().label)}-диагностики, и здесь появится разбор только твоих ошибок.</li>`;
+  }
+
+  if (!items.length) {
+    return `<li class="mistake-item clean">Ошибок в этом тесте нет.</li>`;
+  }
+
+  return items.map((item) => `
+    <li class="mistake-item">
+      <span class="mistake-topic">Вопрос ${item.number}: ${escapeHtml(item.topic)}</span>
+      <strong>${escapeHtml(item.title)}</strong>
+      <span><b>Твой ответ:</b> ${escapeHtml(item.selectedText)}</span>
+      <span><b>Верный ответ:</b> ${escapeHtml(item.correctText)}</span>
+      <small>${escapeHtml(item.explanation)}</small>
+    </li>
+  `).join("");
 }
 
 function getWeakTopicLabels() {
@@ -910,15 +940,24 @@ function buildResultText() {
   if (!state.completed) return "Диагностика еще не завершена.";
 
   const course = getRecommendedCourse();
-  const study = getStudyItems().map((item) => `- ${item}`).join("\n");
+  const mistakes = getMistakeItems();
+  const mistakeText = mistakes.length
+    ? mistakes.map((item) => [
+      `- Вопрос ${item.number}: ${item.topic}`,
+      `  Ошибка: ${item.title}`,
+      `  Твой ответ: ${item.selectedText}`,
+      `  Верный ответ: ${item.correctText}`,
+      `  На что обратить внимание: ${item.explanation}`,
+    ].join("\n")).join("\n")
+    : "- Ошибок в этом тесте нет.";
 
   return [
     `${getConfig().label}-диагностика`,
     `Готовность: ${state.score}%`,
-    `Слабые зоны: ${getWeakTopicLabels()}`,
+    `Ошибок: ${mistakes.length} из ${state.questions.length}`,
     "",
-    "Что выучить и на что обратить внимание:",
-    study,
+    "Ошибки в этой попытке:",
+    mistakeText,
     "",
     `Рекомендованный маршрут: ${course.title}`,
     course.url,
@@ -954,6 +993,15 @@ function fallbackCopy(text) {
   textarea.remove();
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function switchMode(mode) {
   if (!tests[mode] || mode === state.mode) return;
   activeMode = mode;
@@ -985,7 +1033,8 @@ function renderInitialResult() {
   els.score.style.setProperty("--score", "0%");
   els.diagnosisTitle.textContent = `Результат появится после ${config.label}-ответов`;
   els.diagnosisCopy.textContent = "Результат считается только после подтверждения ответа. Обычный клик пока ничего не засчитывает.";
-  els.studyList.innerHTML = `<li>Ответь на вопросы ${config.label}-диагностики, и здесь появятся конкретные слабые места.</li>`;
+  els.studyList.classList.remove("mistake-list");
+  els.studyList.innerHTML = `<li>Ответь на вопросы ${config.label}-диагностики, и здесь появится разбор только твоих ошибок.</li>`;
   els.courseTitle.textContent = "Сначала диагностика";
   els.courseCopy.textContent = "Ссылка на маршрут появится после результата.";
   els.courseLink.href = course.url;
