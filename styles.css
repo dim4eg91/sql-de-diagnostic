@@ -511,9 +511,11 @@ ul {
   margin-top: 6px;
 }
 
-.final-summary {
+.completion-card {
   display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 18px;
+  align-items: start;
   padding: 22px;
   border: 1px solid var(--line);
   border-radius: 22px;
@@ -522,20 +524,16 @@ ul {
     radial-gradient(circle at 100% 0%, rgba(22, 100, 90, 0.12), transparent 18rem);
 }
 
-.final-summary h3,
-.final-summary h4,
-.final-summary p {
-  margin-bottom: 0;
+.completion-card h3,
+.completion-card p {
+  margin-bottom: 10px;
 }
 
-.final-summary-head {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 14px;
-  align-items: center;
+.completion-card .link-action {
+  margin-top: 6px;
 }
 
-.final-score {
+.completion-score {
   width: 78px;
   height: 78px;
   display: grid;
@@ -548,17 +546,54 @@ ul {
   font-weight: 700;
 }
 
-.final-course {
-  display: grid;
-  gap: 8px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  background: var(--surface);
+.rulebook {
+  margin-top: 34px;
 }
 
-.final-course p {
+.section-head {
+  max-width: 760px;
+  margin-bottom: 16px;
+}
+
+.rule-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.rule-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid rgba(222, 212, 196, 0.92);
+  border-radius: 20px;
+  background: rgba(255, 253, 248, 0.84);
+  box-shadow: 0 16px 42px rgba(37, 31, 21, 0.06);
+}
+
+.rule-card span {
+  display: inline-flex;
+  margin-bottom: 14px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--accent-weak);
+  color: var(--accent);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.rule-card p {
+  margin-bottom: 0;
   color: var(--muted);
+}
+
+.rule-card code {
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.88em;
 }
 
 @media (max-width: 960px) {
@@ -578,6 +613,10 @@ ul {
 
   .question-panel {
     min-height: auto;
+  }
+
+  .rule-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -630,8 +669,9 @@ ul {
   }
 
   h1 {
-    font-size: clamp(27px, 8vw, 32px);
+    font-size: clamp(26px, 7.2vw, 30px);
     line-height: 1.06;
+    letter-spacing: -0.045em;
   }
 
   h2 {
@@ -719,25 +759,34 @@ ul {
   }
 
   .course-card,
-  .final-summary,
-  .final-course {
+  .completion-card {
     border-radius: 16px;
   }
 
-  .final-summary {
+  .completion-card {
+    grid-template-columns: 1fr;
     gap: 14px;
     padding: 15px;
   }
 
-  .final-summary-head {
-    grid-template-columns: 1fr;
-  }
-
-  .final-score {
+  .completion-score {
     width: 64px;
     height: 64px;
     border-radius: 18px;
     font-size: 17px;
+  }
+
+  .rulebook {
+    margin-top: 24px;
+  }
+
+  .rule-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rule-card {
+    padding: 15px;
+    border-radius: 16px;
   }
 }
 

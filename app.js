@@ -405,7 +405,7 @@ ingest_date = '2026-04-30'`,
           { text: "Полную сверку всех бизнес-метрик с BI-дашбордом за весь период", correct: false },
           { text: "Только наличие файла в storage, не читая целевую таблицу", correct: false },
         ],
-        explanation: "Smoke-check не заменяет DQ. Он быстро отвечает: загрузка вообще живая или уже мертвая.",
+        explanation: "Smoke-check не заменяет DQ. Он быстро показывает, прошла ли загрузка базовые проверки.",
       },
       {
         topic: "spark",
@@ -424,7 +424,7 @@ df.coalesce(10)`,
       {
         topic: "storage",
         source: "DE: Parquet и partitionBy",
-        title: "Что реально делает partitionBy при записи Parquet?",
+        title: "Что делает partitionBy при записи Parquet?",
         sql: `df.write.partitionBy("dt").parquet(path)`,
         answers: [
           { text: "Раскладывает файлы по папкам вида dt=..., помогая фильтрам по dt читать меньше данных", correct: true },
@@ -432,7 +432,7 @@ df.coalesce(10)`,
           { text: "Создает по одному Spark executor на каждое значение dt", correct: false },
           { text: "Заменяет bucket/sort и автоматически решает проблему small files", correct: false },
         ],
-        explanation: "partitionBy задает физическую раскладку. Она помогает только если фильтры реально используют partition column.",
+        explanation: "partitionBy задает физическую раскладку. Она помогает только если фильтры используют partition column.",
       },
       {
         topic: "storage",
@@ -456,12 +456,12 @@ left join dim_product
 left join dim_seller
 left join dim_customer`,
         answers: [
-          { text: "Тихо сломать grain факта и размножить строки", correct: true },
+          { text: "Нарушить grain факта и размножить строки без явной ошибки", correct: true },
           { text: "LEFT JOIN безопасен для grain, потому что он не режет строки факта", correct: false },
           { text: "Главный риск в том, что в dimension-колонках появится слишком много NULL", correct: false },
           { text: "Если денормализовать все поля в одну таблицу, grain автоматически фиксируется", correct: false },
         ],
-        explanation: "Wide-витрина выглядит безобидно, пока один join не превращает одну строку факта в несколько.",
+        explanation: "Wide-витрина опасна тем, что один неуникальный join может превратить одну строку факта в несколько.",
       },
       {
         topic: "contracts",
@@ -524,55 +524,55 @@ spark.sql("select ... group by ...")`,
 const resultProfiles = [
   {
     min: 78,
-    title: "База крепкая. Теперь нужна скорость и сложные кейсы.",
-    copy: "Ты не просто знаешь синтаксис. Но слабые зоны все равно надо добить, иначе на реальном интервью всплывет именно крайний случай.",
+    title: "Хорошая база. Осталось закрыть сложные случаи.",
+    copy: "Главный риск уже не в синтаксисе, а в окнах, датах, CTE, grain и объяснении решения.",
   },
   {
     min: 55,
-    title: "База есть, но собеседование будет цепляться за края.",
-    copy: "Типичная зона: человек умеет писать запросы, но ломается на краевых случаях. Это лечится практикой, а не чтением теории.",
+    title: "База есть, но есть слабые места.",
+    copy: "Нужна практика на пограничных случаях: NULL, JOIN, агрегации, даты и выбор строки целиком.",
   },
   {
     min: 0,
-    title: "Сейчас рано идти в сложные задачи без закрытия базы.",
-    copy: "Здесь слишком много дыр в фундаменте. Сначала нужно убрать типовые провалы, иначе сложные задания будут решаться угадыванием.",
+    title: "Сначала нужно закрыть базу.",
+    copy: "Начни с JOIN, GROUP BY, NULL, HAVING и простых оконных функций. Сложные задачи без базы дают случайный результат.",
   },
 ];
 
 const courses = {
   sqlFoundation: {
     title: "SQL для аналитиков и инженеров данных",
-    copy: "Если проседают JOIN, GROUP BY, NULL и простые фильтры, сначала нужен фундамент, а не героизм на Middle-задачах.",
+    copy: "Если проседают JOIN, GROUP BY, NULL и простые фильтры, сначала нужен фундамент.",
     url: "https://stepik.org/a/210499",
     cta: "Открыть курс на Stepik",
   },
   sqlJunior: {
     title: "SQL-собеседование: 100 задач уровня Junior",
-    copy: "Лучший маршрут, если база уже есть, но валят edge-кейсы, скорость и объяснение решения.",
+    copy: "Подходит, если база уже есть, но не хватает устойчивости, скорости и ясного объяснения решения.",
     url: "https://stepik.org/a/240980",
     cta: "Открыть курс на Stepik",
   },
   sqlMiddle: {
     title: "SQL-собеседование: 100 задач уровня Middle",
-    copy: "Нужен, когда базовые JOIN/GROUP BY уже не проблема, а боль начинается в окнах, CTE, датах и сложных агрегациях.",
+    copy: "Подходит, когда базовые JOIN и GROUP BY уже не проблема, а ошибки появляются в окнах, CTE, датах и сложных агрегациях.",
     url: "https://stepik.org/a/238112",
     cta: "Открыть курс на Stepik",
   },
   sqlJuniorMiddleProgram: {
     title: "SQL-собеседование: программа Junior → Middle",
-    copy: "Если слабые места размазаны по базе, подзапросам, CTE и окнам, один точечный курс будет латкой. Здесь лучше идти программой.",
+    copy: "Если слабые места есть сразу в нескольких темах, лучше идти программой, а не закрывать темы случайными задачами.",
     url: "https://stepik.org/246785",
     cta: "Открыть программу на Stepik",
   },
   sqlUpperMiddleProgram: {
     title: "SQL-собеседование: программа Junior → Upper-Middle",
-    copy: "Если база крепкая, а просадка уже в многоходовых запросах, окнах, CTE и объяснении решения, нужен маршрут до Upper-Middle.",
+    copy: "Если база крепкая, развивай многоходовые запросы, окна, CTE, декомпозицию и объяснение решения.",
     url: "https://stepik.org/a/251214",
     cta: "Открыть Upper-Middle на Stepik",
   },
   dePracticum: {
     title: "DE Practicum",
-    copy: "Если страдает инженерная сборка данных: Spark, Airflow, DWH-слои, контракты, DQ и надежность пайплайна.",
+    copy: "Если нужна практика по инженерной сборке данных: Spark, Airflow, DWH-слои, контракты, DQ и надежность пайплайна.",
     url: "https://kuzmin-dmitry.ru/de_practicum",
     cta: "Открыть лендинг DE",
   },
@@ -673,9 +673,6 @@ function renderQuestion() {
 
 function renderCompletionView() {
   const config = getConfig();
-  const profile = getResultProfile();
-  const course = getRecommendedCourse();
-  const studyItems = getStudyItems();
   const weakTopics = getWeakTopicLabels();
 
   els.progressBar.style.width = "100%";
@@ -684,21 +681,13 @@ function renderCompletionView() {
   els.questionSource.textContent = `Слабые зоны: ${weakTopics}`;
   els.questionCodeWrap.hidden = true;
   els.answerList.innerHTML = `
-    <article class="final-summary">
-      <div class="final-summary-head">
-        <span class="final-score">${state.score}%</span>
-        <div>
-          <p class="eyebrow">Итог</p>
-          <h3>${profile.title}</h3>
-        </div>
-      </div>
-      <p>${profile.copy}</p>
-      <h4>Что страдает</h4>
-      <ul>${studyItems.map((item) => `<li>${item}</li>`).join("")}</ul>
-      <div class="final-course">
-        <strong>${course.title}</strong>
-        <p>${course.copy}</p>
-        <a class="primary-action link-action" href="${course.url}" target="_blank" rel="noreferrer">${course.cta}</a>
+    <article class="completion-card">
+      <span class="completion-score">${state.score}%</span>
+      <div>
+        <p class="eyebrow">Тест завершен</p>
+        <h3>Подробный разбор собран в блоке результата.</h3>
+        <p>Там находятся слабые темы, рекомендации и ссылка на подходящий маршрут.</p>
+        <a class="secondary-action link-action" href="#resultPanel">Перейти к результату</a>
       </div>
     </article>
   `;
@@ -994,7 +983,7 @@ function renderInitialResult() {
   const course = getRecommendedCourse();
   els.score.textContent = "0%";
   els.score.style.setProperty("--score", "0%");
-  els.diagnosisTitle.textContent = `Диагноз появится после ${config.label}-ответов`;
+  els.diagnosisTitle.textContent = `Результат появится после ${config.label}-ответов`;
   els.diagnosisCopy.textContent = "Результат считается только после подтверждения ответа. Обычный клик пока ничего не засчитывает.";
   els.studyList.innerHTML = `<li>Ответь на вопросы ${config.label}-диагностики, и здесь появятся конкретные слабые места.</li>`;
   els.courseTitle.textContent = "Сначала диагностика";

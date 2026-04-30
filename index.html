@@ -13,7 +13,7 @@
         <span class="brand-mark">SQL</span>
         <span>
           <strong>SQL диагностика</strong>
-          <small>короткий разбор готовности к собесу и практике</small>
+          <small>проверка SQL и Data Engineering</small>
         </span>
       </a>
 
@@ -25,11 +25,11 @@
 
     <section class="hero">
       <div>
-        <p class="eyebrow">Диагностика вместо гадания</p>
-        <h1>Проверь, где ты реально сыпешься в SQL.</h1>
+        <p class="eyebrow">SQL и DE диагностика</p>
+        <h1>Проверь SQL перед собеседованием.</h1>
         <p>
-          Отдельно проверяем SQL и отдельно Data Engineering. Без каши: SQL-тест не спрашивает
-          про батчи и Airflow, а DE-тест не притворяется обычной проверкой SELECT.
+          SQL-тест проверяет запросы: JOIN, NULL, агрегации, окна и даты.
+          После теста будет маршрут подготовки. DE-тест отдельно проверяет пайплайны, Spark, Airflow, DWH и контроль качества.
         </p>
       </div>
       <div class="hero-visual" aria-hidden="true">
@@ -43,11 +43,11 @@
     <section class="mode-switch" aria-label="Выбор диагностики">
       <button class="mode-button active" data-mode="sql" type="button">
         <span>SQL</span>
-        <strong>Собесы, задачи, edge cases</strong>
+        <strong>Запросы, метрики, оконные функции</strong>
       </button>
       <button class="mode-button" data-mode="de" type="button">
         <span>DE</span>
-        <strong>Пайплайны, Spark, Airflow, DWH</strong>
+        <strong>Пайплайны, Spark, DWH, DQ</strong>
       </button>
     </section>
 
@@ -75,12 +75,12 @@
         <p class="feedback" id="answerFeedback" aria-live="polite"></p>
       </section>
 
-      <aside class="panel result-panel" aria-label="Результат">
+      <aside class="panel result-panel" id="resultPanel" aria-label="Результат">
         <div class="score-ring" id="diagnosticScore" aria-label="Текущий результат">0%</div>
         <p class="eyebrow">Результат</p>
-        <h2 id="diagnosisTitle">Диагноз появится после ответов</h2>
+        <h2 id="diagnosisTitle">Результат появится после ответов</h2>
         <p id="diagnosisCopy">
-          Результат считается только после подтверждения ответа. Обычный клик пока ничего не засчитывает.
+          Ответ засчитывается только после подтверждения. До этого выбор можно поменять.
         </p>
 
         <div class="recommendation-block">
@@ -102,6 +102,46 @@
         </div>
         <p class="feedback" id="resultStatus" aria-live="polite"></p>
       </aside>
+    </section>
+
+    <section class="rulebook" aria-label="Карточки правил">
+      <div class="section-head">
+        <p class="eyebrow">Карточки правил</p>
+        <h2>Короткие правила, которые чаще всего спасают на задачах.</h2>
+      </div>
+
+      <div class="rule-grid">
+        <article class="rule-card">
+          <span>SQL</span>
+          <h3>LEFT JOIN</h3>
+          <p>Если нужно сохранить левую таблицу, фильтр по правой таблице чаще ставится в ON, а не в WHERE.</p>
+        </article>
+        <article class="rule-card">
+          <span>SQL</span>
+          <h3>Периоды</h3>
+          <p>Для timestamp используй полуинтервал: <code>&gt;= start</code> и <code>&lt; next_start</code>.</p>
+        </article>
+        <article class="rule-card">
+          <span>SQL</span>
+          <h3>Grain</h3>
+          <p>Перед SUM после JOIN проверь, что одна строка факта не размножилась на несколько строк.</p>
+        </article>
+        <article class="rule-card">
+          <span>SQL</span>
+          <h3>NULL</h3>
+          <p><code>= NULL</code> не работает как проверка пустоты. Для этого есть <code>IS NULL</code>.</p>
+        </article>
+        <article class="rule-card">
+          <span>DE</span>
+          <h3>Идемпотентность</h3>
+          <p>Повторный запуск за ту же дату не должен создавать дубли или менять результат случайно.</p>
+        </article>
+        <article class="rule-card">
+          <span>DE</span>
+          <h3>DQ</h3>
+          <p>Зеленый DAG не доказывает качество данных. Нужна сверка count, сумм, дат и ключей.</p>
+        </article>
+      </div>
     </section>
   </main>
 
