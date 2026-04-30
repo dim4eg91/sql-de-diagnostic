@@ -1,0 +1,1013 @@
+const tests = {
+  sql: {
+    label: "SQL",
+    completeTitle: "SQL-результат готов",
+    topics: {
+      joins: {
+        title: "JOIN и связность",
+        short: "JOIN",
+        weight: 0.2,
+        study: [
+          "LEFT JOIN vs INNER JOIN: где фильтр в WHERE ломает смысл запроса.",
+          "Grain после JOIN: почему метрики раздуваются после связи таблиц.",
+        ],
+      },
+      nulls: {
+        title: "NULL и трехзначная логика",
+        short: "NULL",
+        weight: 0.15,
+        study: [
+          "NOT IN, NOT EXISTS и NULL: почему анти-фильтр внезапно возвращает пустоту.",
+          "COUNT(*), COUNT(column), IS NULL и UNKNOWN в условиях.",
+        ],
+      },
+      aggregations: {
+        title: "Агрегации и метрики",
+        short: "Агрегации",
+        weight: 0.17,
+        study: [
+          "GROUP BY, HAVING, ORDER BY и LIMIT для стабильных топов.",
+          "Условия в агрегатах: SUM(CASE WHEN ...), COUNT(DISTINCT ...), корректный grain.",
+        ],
+      },
+      windows: {
+        title: "Оконные функции",
+        short: "Окна",
+        weight: 0.17,
+        study: [
+          "LAG, ROW_NUMBER, PARTITION BY: как считать внутри групп, не схлопывая строки.",
+          "ROWS vs RANGE, ранжирование и дедупликация без лишних self join.",
+        ],
+      },
+      dates: {
+        title: "Даты и периоды",
+        short: "Даты",
+        weight: 0.1,
+        study: [
+          "Границы timestamp: почему BETWEEN часто портит месячные отчеты.",
+          "Периоды через >= start и < next_start вместо ручной магии с датами.",
+        ],
+      },
+      subqueries: {
+        title: "Подзапросы и EXISTS",
+        short: "EXISTS",
+        weight: 0.11,
+        study: [
+          "EXISTS против JOIN: где нужен факт существования, а где нужны поля.",
+          "Коррелированные подзапросы, анти-join и риск дублей.",
+        ],
+      },
+      cte: {
+        title: "CTE и декомпозиция",
+        short: "CTE",
+        weight: 0.1,
+        study: [
+          "CTE как способ разложить решение на читаемые шаги.",
+          "ROW_NUMBER вместо GROUP BY, когда нужно выбрать строку целиком.",
+        ],
+      },
+    },
+    questions: [
+      {
+        topic: "aggregations",
+        source: "SQL Junior: топы, сортировка, стабильный результат",
+        title: "Нужно вывести топ-2 города по числу завершенных сделок. Что критично добавить к запросу?",
+        sql: `select u.city, count(*) as completed_orders
+from users u
+join trades t on t.user_id = u.user_id
+where t.status = 'Completed'
+group by u.city
+-- чего не хватает?`,
+        answers: [
+          { text: "ORDER BY completed_orders DESC, city ASC и LIMIT 2", correct: true },
+          { text: "Только LIMIT 2: база сама вернет самые крупные значения", correct: false },
+          { text: "DISTINCT по city вместо GROUP BY, чтобы убрать дубли", correct: false },
+          { text: "ORDER BY t.created_at DESC, потому что важна последняя сделка", correct: false },
+        ],
+        explanation: "Топ без явной сортировки не является топом. Второй ключ сортировки нужен, чтобы результат не плавал на равных значениях.",
+      },
+      {
+        topic: "joins",
+        source: "SQL Junior: LEFT JOIN и фильтры по правой таблице",
+        title: "Почему этот LEFT JOIN фактически превращается в INNER JOIN?",
+        sql: `select c.customer_id, o.order_id
+from customers c
+left join orders o on o.customer_id = c.customer_id
+where o.status = 'paid';`,
+        answers: [
+          { text: "Фильтр по правой таблице стоит в WHERE и выбрасывает NULL-строки", correct: true },
+          { text: "LEFT JOIN всегда сохраняет все строки, здесь проблемы нет", correct: false },
+          { text: "Нужно добавить ORDER BY, иначе JOIN работает нестабильно", correct: false },
+          { text: "Фильтр надо перенести в SELECT через CASE, и JOIN станет быстрее", correct: false },
+        ],
+        explanation: "WHERE o.status = 'paid' удаляет строки, где заказа нет и поля order равны NULL. Смысл LEFT JOIN ломается.",
+      },
+      {
+        topic: "nulls",
+        source: "SQL Junior: NOT IN и NULL",
+        title: "Что случится с NOT IN, если подзапрос вернет хотя бы один NULL?",
+        sql: `select *
+from users
+where user_id not in (
+  select user_id
+  from blocked_users
+);`,
+        answers: [
+          { text: "Условие может уйти в UNKNOWN и вернуть не то, что ожидали", correct: true },
+          { text: "NULL будет автоматически проигнорирован оптимизатором", correct: false },
+          { text: "NOT IN превратится в обычный IN", correct: false },
+          { text: "Запрос упадет с синтаксической ошибкой", correct: false },
+        ],
+        explanation: "NOT IN плохо дружит с NULL. Для анти-фильтров чаще безопаснее думать в сторону NOT EXISTS или заранее чистить NULL.",
+      },
+      {
+        topic: "aggregations",
+        source: "SQL база: COUNT(*) vs COUNT(column)",
+        title: "Когда COUNT(*) и COUNT(cancelled_at) дадут разные значения?",
+        sql: `select
+  count(*) as rows_cnt,
+  count(cancelled_at) as cancelled_cnt
+from orders;`,
+        answers: [
+          { text: "Когда cancelled_at содержит NULL", correct: true },
+          { text: "Только если в запросе есть GROUP BY", correct: false },
+          { text: "Когда таблица пустая", correct: false },
+          { text: "Никогда: оба выражения считают строки одинаково", correct: false },
+        ],
+        explanation: "COUNT(column) считает только не-NULL значения, COUNT(*) считает строки.",
+      },
+      {
+        topic: "windows",
+        source: "SQL Junior/Middle: LAG и порядок внутри окна",
+        title: "Что делает LAG(order_date) в этом запросе?",
+        sql: `select
+  customer_id,
+  order_id,
+  lag(order_date) over (
+    partition by customer_id
+    order by order_date
+  ) as prev_order_date
+from orders;`,
+        answers: [
+          { text: "Берет дату предыдущего заказа внутри каждого клиента", correct: true },
+          { text: "Берет дату следующего заказа внутри каждого клиента", correct: false },
+          { text: "Считает количество заказов клиента", correct: false },
+          { text: "Сортирует исходную таблицу в обратном порядке", correct: false },
+        ],
+        explanation: "LAG смотрит на предыдущее значение внутри окна, заданного PARTITION BY и ORDER BY.",
+      },
+      {
+        topic: "dates",
+        source: "SQL Junior/Middle: timestamp и границы периода",
+        title: "Почему такой фильтр может сломать месячный отчет по timestamp?",
+        sql: `where created_at between '2026-04-01' and '2026-04-30'`,
+        answers: [
+          { text: "События 30 апреля после 00:00 могут не попасть в результат", correct: true },
+          { text: "BETWEEN нельзя использовать с датами в SQL", correct: false },
+          { text: "timestamp всегда хранится как текст, поэтому сравнение лексикографическое", correct: false },
+          { text: "Фильтр автоматически захватит еще и 1 мая", correct: false },
+        ],
+        explanation: "Для timestamp безопаснее писать полуинтервал: created_at >= '2026-04-01' and created_at < '2026-05-01'.",
+      },
+      {
+        topic: "joins",
+        source: "SQL Junior: grain после JOIN",
+        title: "Почему после JOIN сумма выручки внезапно выросла?",
+        sql: `select sum(o.amount)
+from orders o
+join order_items i on i.order_id = o.order_id;`,
+        answers: [
+          { text: "Заказ размножился по строкам товаров", correct: true },
+          { text: "SUM нельзя использовать после JOIN", correct: false },
+          { text: "JOIN убрал заказы без товаров, поэтому сумма выросла", correct: false },
+          { text: "Нужно добавить DISTINCT к сумме, это универсальное решение", correct: false },
+        ],
+        explanation: "Если одна строка заказа связалась с несколькими item-строками, order-level сумма начинает повторяться.",
+      },
+      {
+        topic: "nulls",
+        source: "SQL база: сравнение с NULL",
+        title: "Что вернет выражение NULL = NULL?",
+        sql: `select null = null;`,
+        answers: [
+          { text: "UNKNOWN / NULL", correct: true },
+          { text: "TRUE", correct: false },
+          { text: "FALSE", correct: false },
+          { text: "Ошибка выполнения", correct: false },
+        ],
+        explanation: "NULL не равен даже NULL. Проверка на отсутствие значения пишется через IS NULL.",
+      },
+      {
+        topic: "windows",
+        source: "SQL Junior/Middle: PARTITION BY",
+        title: "Зачем PARTITION BY в оконной функции?",
+        sql: `row_number() over (
+  partition by customer_id
+  order by order_date
+)`,
+        answers: [
+          { text: "Чтобы расчет начинался заново внутри каждого customer_id", correct: true },
+          { text: "Чтобы физически партиционировать таблицу в базе", correct: false },
+          { text: "Чтобы удалить дубли после JOIN", correct: false },
+          { text: "Чтобы GROUP BY больше не был нужен вообще", correct: false },
+        ],
+        explanation: "PARTITION BY задает группы внутри окна. Строки не схлопываются, в отличие от GROUP BY.",
+      },
+      {
+        topic: "subqueries",
+        source: "SQL Junior/Middle: EXISTS против JOIN",
+        title: "Нужно оставить заказы, у которых существует клиент. Что лучше выражает именно проверку существования?",
+        sql: `-- нужен только факт, что клиент существует
+select o.*
+from orders o
+where ...`,
+        answers: [
+          { text: "WHERE EXISTS (select 1 from customers c where c.customer_id = o.customer_id)", correct: true },
+          { text: "JOIN customers c ON c.customer_id = o.customer_id, даже если поля клиента не нужны", correct: false },
+          { text: "GROUP BY o.order_id HAVING count(*) > 0", correct: false },
+          { text: "ORDER BY customer_id, потому что сортировка докажет существование", correct: false },
+        ],
+        explanation: "EXISTS проверяет факт существования и не размножает строки. JOIN нужен, когда действительно нужны поля из второй таблицы.",
+      },
+      {
+        topic: "aggregations",
+        source: "SQL Junior: WHERE vs HAVING",
+        title: "Нужно оставить только клиентов с двумя и более заказами. Где правильно фильтровать COUNT(*)?",
+        sql: `select customer_id, count(*) as orders_cnt
+from orders
+group by customer_id
+-- где фильтр orders_cnt >= 2?`,
+        answers: [
+          { text: "В HAVING, потому что фильтр идет по агрегату", correct: true },
+          { text: "В WHERE, потому что WHERE всегда быстрее", correct: false },
+          { text: "В JOIN, потому что COUNT считается во время соединения", correct: false },
+          { text: "В ORDER BY, потому что сначала нужно отсортировать клиентов", correct: false },
+        ],
+        explanation: "WHERE фильтрует строки до агрегации, HAVING фильтрует группы после GROUP BY.",
+      },
+      {
+        topic: "windows",
+        source: "SQL Middle: ROWS vs RANGE",
+        title: "Почему RANGE в окне по дате может дать неожиданный результат?",
+        sql: `sum(amount) over (
+  order by order_date
+  range between interval '7 day' preceding and current row
+)`,
+        answers: [
+          { text: "RANGE берет все строки в диапазоне значений order_date, включая повторы дат", correct: true },
+          { text: "RANGE всегда берет ровно 7 предыдущих строк", correct: false },
+          { text: "RANGE работает только с текстовыми колонками", correct: false },
+          { text: "RANGE автоматически удаляет дубли перед расчетом", correct: false },
+        ],
+        explanation: "ROWS считает физические строки, RANGE работает по значениям ORDER BY. На повторяющихся датах это принципиально разные окна.",
+      },
+      {
+        topic: "cte",
+        source: "SQL Middle: выбрать последнюю строку целиком",
+        title: "Как корректно выбрать последний заказ каждого клиента, сохранив все поля заказа?",
+        sql: `orders(customer_id, order_id, order_date, amount, status)`,
+        answers: [
+          { text: "ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date DESC, order_id DESC) и rn = 1", correct: true },
+          { text: "GROUP BY customer_id и MAX(order_date), остальные поля взять как есть", correct: false },
+          { text: "SELECT DISTINCT customer_id, order_id, amount без сортировки", correct: false },
+          { text: "ORDER BY order_date DESC LIMIT 1, этого хватит для всех клиентов", correct: false },
+        ],
+        explanation: "GROUP BY + MAX(date) не возвращает строку целиком. ROW_NUMBER позволяет выбрать конкретную строку внутри клиента.",
+      },
+      {
+        topic: "aggregations",
+        source: "SQL Junior/Middle: условные агрегаты",
+        title: "Как посчитать выручку только по paid-заказам в той же группировке?",
+        sql: `select customer_id,
+       -- paid revenue?
+from orders
+group by customer_id;`,
+        answers: [
+          { text: "SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END)", correct: true },
+          { text: "COUNT(CASE WHEN status = 'paid' THEN amount ELSE 0 END)", correct: false },
+          { text: "WHERE status = 'paid', если одновременно нужны и paid, и all метрики", correct: false },
+          { text: "ORDER BY status = 'paid', чтобы paid строки попали первыми", correct: false },
+        ],
+        explanation: "Условная агрегация позволяет считать несколько метрик в одном проходе и не ломать общий набор строк.",
+      },
+    ],
+  },
+  de: {
+    label: "DE",
+    completeTitle: "DE-результат готов",
+    topics: {
+      modeling: {
+        title: "Модель слоев и grain",
+        short: "Модель",
+        weight: 0.16,
+        study: [
+          "RAW, STG, CORE, MARTS: зачем нужен каждый слой и где фиксируется бизнес-смысл.",
+          "Grain факта и витрины: одна строка должна иметь четкий контракт.",
+        ],
+      },
+      orchestration: {
+        title: "Оркестрация и backfill",
+        short: "Airflow",
+        weight: 0.18,
+        study: [
+          "Airflow run_id, dag_run.conf, params и связь audit-записей с конкретным запуском.",
+          "Идемпотентность DAG: повторный запуск не должен размножать данные.",
+        ],
+      },
+      spark: {
+        title: "Spark и физика вычислений",
+        short: "Spark",
+        weight: 0.18,
+        study: [
+          "Shuffle, repartition, coalesce: где меняется число партиций и цена выполнения.",
+          "DataFrame API и Spark SQL: одна логика, разные способы выражения.",
+        ],
+      },
+      storage: {
+        title: "Хранение и файлы",
+        short: "Storage",
+        weight: 0.16,
+        study: [
+          "Parquet, partitionBy и small files: физическая структура тоже часть решения.",
+          "Partition pruning: когда партиционирование помогает, а когда просто плодит папки.",
+        ],
+      },
+      quality: {
+        title: "Data Quality и контроль",
+        short: "DQ",
+        weight: 0.16,
+        study: [
+          "Smoke-check против полноценного DQ: быстрая проверка не заменяет контракт качества.",
+          "Reconciliation: сверка источника и результата по count, суммам, датам и batch id.",
+        ],
+      },
+      contracts: {
+        title: "Контракты и изменения схем",
+        short: "Контракты",
+        weight: 0.16,
+        study: [
+          "Schema drift: новые поля, исчезнувшие колонки и изменение типа не должны ломать пайплайн молча.",
+          "Контракт входа и выхода: что pipeline обещает потребителю.",
+        ],
+      },
+    },
+    questions: [
+      {
+        topic: "modeling",
+        source: "DE: слои хранилища",
+        title: "Зачем разделять RAW, STG, CORE и MARTS, если можно сразу собрать одну большую таблицу?",
+        sql: `raw -> stg -> core -> marts`,
+        answers: [
+          { text: "Чтобы отделить сырой вход, очистку, бизнес-модель и потребительские витрины", correct: true },
+          { text: "Чтобы просто было больше таблиц и сложнее схема", correct: false },
+          { text: "Чтобы BI всегда ходил напрямую в RAW", correct: false },
+          { text: "Чтобы каждый слой хранил одинаковые данные без изменений", correct: false },
+        ],
+        explanation: "Слои нужны не для красоты. Они разделяют ответственность и позволяют отлаживать пайплайн по шагам.",
+      },
+      {
+        topic: "orchestration",
+        source: "DE: audit и run_id",
+        title: "Зачем в audit-таблице хранить run_id?",
+        sql: `dag_id, task_id, run_id, event_type, ingest_date`,
+        answers: [
+          { text: "Чтобы связать события с конкретным запуском DAG", correct: true },
+          { text: "Чтобы Airflow сам перезапускал упавшую задачу", correct: false },
+          { text: "Чтобы ускорить любой SELECT без индекса", correct: false },
+          { text: "Чтобы заменить partition key в целевой таблице", correct: false },
+        ],
+        explanation: "Без run_id расследование падений превращается в кашу: непонятно, какой запуск что записал.",
+      },
+      {
+        topic: "orchestration",
+        source: "DE: идемпотентность",
+        title: "Что означает идемпотентный batch DAG?",
+        sql: `run same ingest_date twice`,
+        answers: [
+          { text: "Повторный запуск за ту же дату не должен дублировать или портить результат", correct: true },
+          { text: "DAG обязан запускаться только один раз за всю жизнь", correct: false },
+          { text: "DAG должен игнорировать входные параметры", correct: false },
+          { text: "Повторный запуск всегда должен создавать новую копию всех данных", correct: false },
+        ],
+        explanation: "Идемпотентность нужна для backfill, retry и ручных перезапусков. Без нее данные быстро размножаются.",
+      },
+      {
+        topic: "quality",
+        source: "DE: smoke-check",
+        title: "Что должен ловить smoke-check после загрузки batch?",
+        sql: `table = stg.orders
+ingest_date = '2026-04-30'`,
+        answers: [
+          { text: "Грубую поломку: batch отсутствует, пустой или не соответствует базовому ожиданию", correct: true },
+          { text: "Все возможные бизнес-ошибки и все edge cases", correct: false },
+          { text: "Только синтаксические ошибки SQL", correct: false },
+          { text: "Только скорость выполнения запроса", correct: false },
+        ],
+        explanation: "Smoke-check не заменяет DQ. Он быстро отвечает: загрузка вообще живая или уже мертвая.",
+      },
+      {
+        topic: "spark",
+        source: "DE: Spark partitions",
+        title: "Чем repartition обычно отличается от coalesce?",
+        sql: `df.repartition(100)
+df.coalesce(10)`,
+        answers: [
+          { text: "repartition делает shuffle, coalesce чаще уменьшает число партиций без полного shuffle", correct: true },
+          { text: "coalesce всегда увеличивает число партиций быстрее repartition", correct: false },
+          { text: "Обе операции всегда идентичны по физическому плану", correct: false },
+          { text: "repartition работает только с SQL, а coalesce только с Python", correct: false },
+        ],
+        explanation: "Это вопрос цены выполнения. Нельзя механически менять партиции, не понимая shuffle.",
+      },
+      {
+        topic: "storage",
+        source: "DE: Parquet и partitionBy",
+        title: "Что реально делает partitionBy при записи Parquet?",
+        sql: `df.write.partitionBy("dt").parquet(path)`,
+        answers: [
+          { text: "Раскладывает файлы по папкам вида dt=..., помогая фильтрам по dt читать меньше данных", correct: true },
+          { text: "Гарантирует ровно один файл на каждую дату", correct: false },
+          { text: "Создает индекс как в OLTP-базе", correct: false },
+          { text: "Автоматически сортирует все данные внутри каждого файла", correct: false },
+        ],
+        explanation: "partitionBy задает физическую раскладку. Она помогает только если фильтры реально используют partition column.",
+      },
+      {
+        topic: "storage",
+        source: "DE: small files",
+        title: "Почему small files становятся проблемой в data lake?",
+        sql: `thousands of tiny parquet files`,
+        answers: [
+          { text: "Планирование и чтение множества мелких файлов дают большой overhead", correct: true },
+          { text: "Parquet перестает быть columnar-форматом", correct: false },
+          { text: "Мелкие файлы нельзя читать через Spark", correct: false },
+          { text: "Мелкие файлы всегда занимают меньше метаданных", correct: false },
+        ],
+        explanation: "Spark и object storage платят цену за каждый файл. Иногда проблема не в объеме данных, а в количестве файлов.",
+      },
+      {
+        topic: "modeling",
+        source: "DE: wide mart и grain",
+        title: "Что самое опасное при сборке wide-витрины из факта и измерений?",
+        sql: `fct_order_items
+left join dim_product
+left join dim_seller
+left join dim_customer`,
+        answers: [
+          { text: "Тихо сломать grain факта и размножить строки", correct: true },
+          { text: "Получить слишком мало колонок для BI", correct: false },
+          { text: "Использовать LEFT JOIN вместо INNER JOIN в любом случае", correct: false },
+          { text: "Сделать имена колонок слишком короткими", correct: false },
+        ],
+        explanation: "Wide-витрина выглядит безобидно, пока один join не превращает одну строку факта в несколько.",
+      },
+      {
+        topic: "contracts",
+        source: "DE: schema drift",
+        title: "Что делать, если источник внезапно поменял тип поля amount со string на object?",
+        sql: `yesterday: amount = "120.50"
+today: amount = {"value": 120.50, "currency": "RUB"}`,
+        answers: [
+          { text: "Зафиксировать нарушение контракта, остановить или развести обработку по версии схемы", correct: true },
+          { text: "Молча привести object к string и грузить дальше", correct: false },
+          { text: "Удалить поле amount из всех витрин", correct: false },
+          { text: "Игнорировать изменение, если row count совпадает", correct: false },
+        ],
+        explanation: "Schema drift должен быть явным событием. Молчаливое приведение типов часто ломает метрики позже.",
+      },
+      {
+        topic: "quality",
+        source: "DE: reconciliation",
+        title: "Какая проверка лучше всего ловит потерю строк между STG и CORE?",
+        sql: `stg.orders -> core.fct_orders`,
+        answers: [
+          { text: "Сверка count и ключевых агрегатов по batch/date между слоями", correct: true },
+          { text: "Проверка, что SQL-файл не пустой", correct: false },
+          { text: "Проверка, что DAG был зеленым в Airflow", correct: false },
+          { text: "Проверка, что таблица имеет красивое имя", correct: false },
+        ],
+        explanation: "Зеленый DAG не доказывает корректность данных. Нужна сверка результата с источником.",
+      },
+      {
+        topic: "orchestration",
+        source: "DE: параметры DAG",
+        title: "Откуда лучше брать ingest_date при ручном запуске DAG?",
+        sql: `dag_run.conf.get("ingest_date") or params["ingest_date"]`,
+        answers: [
+          { text: "Из dag_run.conf, а params использовать как fallback", correct: true },
+          { text: "Только из системной даты сервера", correct: false },
+          { text: "Только из имени Python-файла DAG", correct: false },
+          { text: "Из случайной последней даты в целевой таблице", correct: false },
+        ],
+        explanation: "Ручной запуск должен быть управляемым. Run Config дает контроль, params дает безопасное значение по умолчанию.",
+      },
+      {
+        topic: "spark",
+        source: "DE: Spark API vs SQL",
+        title: "Зачем в учебном DE-практикуме одну и ту же логику иногда писать через DataFrame API и Spark SQL?",
+        sql: `df.groupBy(...)
+spark.sql("select ... group by ...")`,
+        answers: [
+          { text: "Чтобы понимать план и контракт данных, а не зависеть от одного синтаксиса", correct: true },
+          { text: "Чтобы Spark выполнил один и тот же расчет два раза в проде", correct: false },
+          { text: "Потому что SQL всегда быстрее DataFrame API", correct: false },
+          { text: "Потому что DataFrame API не умеет делать join", correct: false },
+        ],
+        explanation: "Сильный DE понимает логику и физику выполнения. Синтаксис вторичен.",
+      },
+    ],
+  },
+};
+
+const resultProfiles = [
+  {
+    min: 78,
+    title: "База крепкая. Теперь нужна скорость и сложные кейсы.",
+    copy: "Ты не просто знаешь синтаксис. Но слабые зоны все равно надо добить, иначе на реальном интервью всплывет именно крайний случай.",
+  },
+  {
+    min: 55,
+    title: "База есть, но собеседование будет цепляться за края.",
+    copy: "Типичная зона: человек умеет писать запросы, но ломается на краевых случаях. Это лечится практикой, а не чтением теории.",
+  },
+  {
+    min: 0,
+    title: "Сейчас рано идти в сложные задачи без закрытия базы.",
+    copy: "Здесь слишком много дыр в фундаменте. Сначала нужно убрать типовые провалы, иначе сложные задания будут решаться угадыванием.",
+  },
+];
+
+const courses = {
+  sqlFoundation: {
+    title: "SQL для аналитиков и инженеров данных",
+    copy: "Если проседают JOIN, GROUP BY, NULL и простые фильтры, сначала нужен фундамент, а не героизм на Middle-задачах.",
+    url: "https://stepik.org/a/210499",
+    cta: "Открыть курс на Stepik",
+  },
+  sqlJunior: {
+    title: "SQL-собеседование: 100 задач уровня Junior",
+    copy: "Лучший маршрут, если база уже есть, но валят edge-кейсы, скорость и объяснение решения.",
+    url: "https://stepik.org/a/240980",
+    cta: "Открыть курс на Stepik",
+  },
+  sqlMiddle: {
+    title: "SQL-собеседование: 100 задач уровня Middle",
+    copy: "Нужен, когда базовые JOIN/GROUP BY уже не проблема, а боль начинается в окнах, CTE, датах и сложных агрегациях.",
+    url: "https://stepik.org/a/238112",
+    cta: "Открыть курс на Stepik",
+  },
+  sqlJuniorMiddleProgram: {
+    title: "SQL-собеседование: программа Junior → Middle",
+    copy: "Если слабые места размазаны по базе, подзапросам, CTE и окнам, один точечный курс будет латкой. Здесь лучше идти программой.",
+    url: "https://stepik.org/246785",
+    cta: "Открыть программу на Stepik",
+  },
+  sqlUpperMiddleProgram: {
+    title: "SQL-собеседование: программа Junior → Upper-Middle",
+    copy: "Если база крепкая, а просадка уже в многоходовых запросах, окнах, CTE и объяснении решения, нужен маршрут до Upper-Middle.",
+    url: "https://stepik.org/a/251214",
+    cta: "Открыть Upper-Middle на Stepik",
+  },
+  dePracticum: {
+    title: "DE Practicum",
+    copy: "Если страдает инженерная сборка данных: Spark, Airflow, DWH-слои, контракты, DQ и надежность пайплайна.",
+    url: "https://kuzmin-dmitry.ru/de_practicum",
+    cta: "Открыть лендинг DE",
+  },
+};
+
+const els = {
+  progressBar: document.querySelector("#diagnosticProgressBar"),
+  questionProgress: document.querySelector("#questionProgress"),
+  questionTitle: document.querySelector("#questionTitle"),
+  questionSource: document.querySelector("#questionSource"),
+  questionCodeWrap: document.querySelector("#questionCodeWrap"),
+  questionSql: document.querySelector("#questionSql"),
+  answerList: document.querySelector("#answerList"),
+  restart: document.querySelector("#restartDiagnostic"),
+  next: document.querySelector("#nextQuestion"),
+  answerFeedback: document.querySelector("#answerFeedback"),
+  score: document.querySelector("#diagnosticScore"),
+  diagnosisTitle: document.querySelector("#diagnosisTitle"),
+  diagnosisCopy: document.querySelector("#diagnosisCopy"),
+  studyList: document.querySelector("#studyList"),
+  courseTitle: document.querySelector("#courseTitle"),
+  courseCopy: document.querySelector("#courseCopy"),
+  courseLink: document.querySelector("#courseLink"),
+  copyResult: document.querySelector("#copyResult"),
+  resultStatus: document.querySelector("#resultStatus"),
+  modeButtons: document.querySelectorAll("[data-mode]"),
+};
+
+let activeMode = "sql";
+let state = createState(activeMode);
+
+function createState(mode) {
+  const questions = buildSessionQuestions(tests[mode].questions);
+  return {
+    mode,
+    questions,
+    currentIndex: 0,
+    selectedAnswerIndex: null,
+    answerConfirmed: false,
+    answers: Array(questions.length).fill(null),
+    completed: false,
+    score: 0,
+    topicScores: {},
+    weakTopicKeys: [],
+  };
+}
+
+function buildSessionQuestions(questions) {
+  return shuffle(questions).map((question) => ({
+    ...question,
+    answers: shuffle(question.answers.map((answer) => ({ ...answer }))),
+  }));
+}
+
+function shuffle(items) {
+  const copy = [...items];
+  for (let index = copy.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [copy[index], copy[swapIndex]] = [copy[swapIndex], copy[index]];
+  }
+  return copy;
+}
+
+function getConfig() {
+  return tests[state.mode];
+}
+
+function getTopicMeta() {
+  return getConfig().topics;
+}
+
+function getCurrentQuestion() {
+  return state.questions[state.currentIndex];
+}
+
+function renderQuestion() {
+  if (state.completed) {
+    renderCompletionView();
+    return;
+  }
+
+  const confirmedCount = getConfirmedAnswers().length;
+  const question = getCurrentQuestion();
+  const progress = Math.round((confirmedCount / state.questions.length) * 100);
+  els.questionCodeWrap.hidden = false;
+  els.progressBar.style.width = `${progress}%`;
+  els.questionProgress.textContent = `Вопрос ${state.currentIndex + 1} из ${state.questions.length}`;
+  els.questionSource.textContent = question.source;
+  els.questionTitle.textContent = question.title;
+  els.questionSql.textContent = question.sql;
+  els.answerFeedback.textContent = state.answerConfirmed
+    ? getFeedbackText(question)
+    : "Выбери вариант. Ответ засчитается только после подтверждения.";
+
+  renderAnswerButtons();
+  updateActionButton();
+}
+
+function renderCompletionView() {
+  const config = getConfig();
+  const profile = getResultProfile();
+  const course = getRecommendedCourse();
+  const studyItems = getStudyItems();
+  const weakTopics = getWeakTopicLabels();
+
+  els.progressBar.style.width = "100%";
+  els.questionProgress.textContent = `${config.label}-диагностика завершена`;
+  els.questionTitle.textContent = config.completeTitle;
+  els.questionSource.textContent = `Слабые зоны: ${weakTopics}`;
+  els.questionCodeWrap.hidden = true;
+  els.answerList.innerHTML = `
+    <article class="final-summary">
+      <div class="final-summary-head">
+        <span class="final-score">${state.score}%</span>
+        <div>
+          <p class="eyebrow">Итог</p>
+          <h3>${profile.title}</h3>
+        </div>
+      </div>
+      <p>${profile.copy}</p>
+      <h4>Что страдает</h4>
+      <ul>${studyItems.map((item) => `<li>${item}</li>`).join("")}</ul>
+      <div class="final-course">
+        <strong>${course.title}</strong>
+        <p>${course.copy}</p>
+        <a class="primary-action link-action" href="${course.url}" target="_blank" rel="noreferrer">${course.cta}</a>
+      </div>
+    </article>
+  `;
+  els.next.disabled = true;
+  els.next.textContent = "Готово";
+  els.answerFeedback.textContent = "";
+}
+
+function renderAnswerButtons() {
+  const question = getCurrentQuestion();
+  els.answerList.innerHTML = "";
+
+  question.answers.forEach((answer, index) => {
+    const button = document.createElement("button");
+    const marker = document.createElement("span");
+    const label = document.createElement("span");
+
+    button.type = "button";
+    marker.className = "answer-marker";
+    marker.textContent = String.fromCharCode(65 + index);
+    label.textContent = answer.text;
+    button.append(marker, label);
+
+    button.classList.toggle("selected", state.selectedAnswerIndex === index && !state.answerConfirmed);
+    button.classList.toggle("correct", state.answerConfirmed && answer.correct);
+    button.classList.toggle("wrong", state.answerConfirmed && state.selectedAnswerIndex === index && !answer.correct);
+    button.disabled = state.answerConfirmed;
+    button.addEventListener("click", () => selectAnswer(index));
+    els.answerList.appendChild(button);
+  });
+}
+
+function selectAnswer(index) {
+  if (state.completed || state.answerConfirmed) return;
+
+  state.selectedAnswerIndex = index;
+  renderAnswerButtons();
+  updateActionButton();
+  els.answerFeedback.textContent = "Выбор зафиксирован. Теперь нажми «Подтвердить выбор», чтобы увидеть разбор.";
+}
+
+function updateActionButton() {
+  if (state.completed) return;
+
+  if (!Number.isInteger(state.selectedAnswerIndex)) {
+    els.next.disabled = true;
+    els.next.textContent = "Выбери ответ";
+    return;
+  }
+
+  els.next.disabled = false;
+  if (!state.answerConfirmed) {
+    els.next.textContent = "Подтвердить выбор";
+    return;
+  }
+
+  els.next.textContent = state.currentIndex === state.questions.length - 1
+    ? "Показать результат"
+    : "Следующий вопрос";
+}
+
+function handlePrimaryAction() {
+  if (!Number.isInteger(state.selectedAnswerIndex)) return;
+
+  if (!state.answerConfirmed) {
+    confirmAnswer();
+    return;
+  }
+
+  if (state.currentIndex >= state.questions.length - 1) {
+    completeDiagnostic();
+    return;
+  }
+
+  state.currentIndex += 1;
+  state.selectedAnswerIndex = null;
+  state.answerConfirmed = false;
+  renderQuestion();
+}
+
+function confirmAnswer() {
+  const question = getCurrentQuestion();
+  const selectedAnswer = question.answers[state.selectedAnswerIndex];
+  const correctAnswer = question.answers.find((answer) => answer.correct);
+
+  state.answerConfirmed = true;
+  state.answers[state.currentIndex] = {
+    topic: question.topic,
+    correct: selectedAnswer.correct,
+    selectedText: selectedAnswer.text,
+    correctText: correctAnswer.text,
+  };
+
+  renderAnswerButtons();
+  updateActionButton();
+  renderLiveResult();
+  els.answerFeedback.textContent = getFeedbackText(question);
+}
+
+function getFeedbackText(question) {
+  const answer = state.answers[state.currentIndex];
+  if (!answer) return question.explanation;
+  return answer.correct
+    ? question.explanation
+    : `Неверно. Правильный ответ: ${answer.correctText}. ${question.explanation}`;
+}
+
+function completeDiagnostic() {
+  state.topicScores = calculateTopicScores();
+  state.score = calculateReadiness(state.topicScores);
+  state.weakTopicKeys = getWeakTopicKeys(state.topicScores);
+  state.completed = true;
+  renderResult();
+  renderQuestion();
+}
+
+function getConfirmedAnswers() {
+  return state.answers.filter(Boolean);
+}
+
+function calculateTopicScores() {
+  const grouped = {};
+  state.questions.forEach((question, index) => {
+    if (!grouped[question.topic]) grouped[question.topic] = { correct: 0, total: 0 };
+    grouped[question.topic].total += 1;
+    if (state.answers[index]?.correct) grouped[question.topic].correct += 1;
+  });
+
+  return Object.fromEntries(
+    Object.entries(grouped).map(([topic, value]) => [
+      topic,
+      Math.round((value.correct / value.total) * 100),
+    ])
+  );
+}
+
+function calculateReadiness(topicScores) {
+  const topics = getTopicMeta();
+  return Math.round(
+    Object.entries(topics).reduce((sum, [topic, meta]) => {
+      return sum + (topicScores[topic] || 0) * meta.weight;
+    }, 0)
+  );
+}
+
+function getWeakTopicKeys(topicScores) {
+  return Object.entries(topicScores)
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 3)
+    .map(([topic]) => topic);
+}
+
+function renderLiveResult() {
+  const confirmed = getConfirmedAnswers();
+  const correct = confirmed.filter((answer) => answer.correct).length;
+  const liveScore = confirmed.length ? Math.round((correct / confirmed.length) * 100) : 0;
+  els.score.textContent = `${liveScore}%`;
+  els.score.style.setProperty("--score", `${liveScore}%`);
+}
+
+function renderResult() {
+  const profile = getResultProfile();
+  const studyItems = getStudyItems();
+  const course = getRecommendedCourse();
+
+  els.score.textContent = `${state.score}%`;
+  els.score.style.setProperty("--score", `${state.score}%`);
+  els.diagnosisTitle.textContent = profile.title;
+  els.diagnosisCopy.textContent = profile.copy;
+  els.studyList.innerHTML = studyItems.map((item) => `<li>${item}</li>`).join("");
+  els.courseTitle.textContent = course.title;
+  els.courseCopy.textContent = course.copy;
+  els.courseLink.href = course.url;
+  els.courseLink.textContent = course.cta;
+  els.copyResult.disabled = false;
+  els.resultStatus.textContent = "Результат не сохраняется. Его можно скопировать.";
+}
+
+function getResultProfile() {
+  if (!state.completed) return resultProfiles[resultProfiles.length - 1];
+  return resultProfiles.find((profile) => state.score >= profile.min);
+}
+
+function getStudyItems() {
+  if (!state.completed) {
+    return [`Ответь на вопросы ${getConfig().label}-диагностики, и здесь появятся конкретные слабые места.`];
+  }
+
+  return state.weakTopicKeys
+    .flatMap((topic) => getTopicMeta()[topic].study)
+    .slice(0, 6);
+}
+
+function getWeakTopicLabels() {
+  if (!state.weakTopicKeys.length) return "пока нет данных";
+  return state.weakTopicKeys.map((topic) => getTopicMeta()[topic].title).join(", ");
+}
+
+function getRecommendedCourse() {
+  if (state.mode === "de") return courses.dePracticum;
+  if (!state.completed) return courses.sqlFoundation;
+
+  const advancedTopics = ["windows", "dates", "cte", "subqueries"];
+  const advancedWeak = state.weakTopicKeys.some((topic) => advancedTopics.includes(topic));
+  const broadWeakness = state.weakTopicKeys.length >= 3;
+  const advancedAverage = Math.round(
+    advancedTopics.reduce((sum, topic) => sum + (state.topicScores[topic] || 0), 0) / advancedTopics.length
+  );
+
+  if (state.score < 55) return courses.sqlFoundation;
+  if (state.score < 68) return courses.sqlJunior;
+  if (state.score < 78 && broadWeakness) return courses.sqlJuniorMiddleProgram;
+  if (state.score >= 86 && advancedAverage >= 70) return courses.sqlUpperMiddleProgram;
+  if (state.score >= 78 && advancedWeak) return courses.sqlMiddle;
+  if (state.score >= 78) return courses.sqlUpperMiddleProgram;
+  return courses.sqlJuniorMiddleProgram;
+}
+
+function buildResultText() {
+  if (!state.completed) return "Диагностика еще не завершена.";
+
+  const course = getRecommendedCourse();
+  const study = getStudyItems().map((item) => `- ${item}`).join("\n");
+
+  return [
+    `${getConfig().label}-диагностика`,
+    `Готовность: ${state.score}%`,
+    `Слабые зоны: ${getWeakTopicLabels()}`,
+    "",
+    "Что выучить и на что обратить внимание:",
+    study,
+    "",
+    `Рекомендованный маршрут: ${course.title}`,
+    course.url,
+  ].join("\n");
+}
+
+async function copyResult() {
+  if (!state.completed) return;
+
+  const text = buildResultText();
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      fallbackCopy(text);
+    }
+    els.resultStatus.textContent = "Результат скопирован.";
+  } catch {
+    fallbackCopy(text);
+    els.resultStatus.textContent = "Результат скопирован через fallback.";
+  }
+}
+
+function fallbackCopy(text) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
+
+function switchMode(mode) {
+  if (!tests[mode] || mode === state.mode) return;
+  activeMode = mode;
+  state = createState(activeMode);
+  renderModeButtons();
+  renderQuestion();
+  renderInitialResult();
+}
+
+function renderModeButtons() {
+  els.modeButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.mode === state.mode);
+  });
+}
+
+function resetDiagnostic() {
+  state = createState(state.mode);
+  els.resultStatus.textContent = "";
+  els.copyResult.disabled = true;
+  renderModeButtons();
+  renderQuestion();
+  renderInitialResult();
+}
+
+function renderInitialResult() {
+  const config = getConfig();
+  const course = getRecommendedCourse();
+  els.score.textContent = "0%";
+  els.score.style.setProperty("--score", "0%");
+  els.diagnosisTitle.textContent = `Диагноз появится после ${config.label}-ответов`;
+  els.diagnosisCopy.textContent = "Результат считается только после подтверждения ответа. Обычный клик пока ничего не засчитывает.";
+  els.studyList.innerHTML = `<li>Ответь на вопросы ${config.label}-диагностики, и здесь появятся конкретные слабые места.</li>`;
+  els.courseTitle.textContent = "Сначала диагностика";
+  els.courseCopy.textContent = "Ссылка на маршрут появится после результата.";
+  els.courseLink.href = course.url;
+  els.courseLink.textContent = state.mode === "de" ? "Открыть лендинг DE" : "Открыть курс";
+}
+
+els.next.addEventListener("click", handlePrimaryAction);
+els.restart.addEventListener("click", resetDiagnostic);
+els.copyResult.addEventListener("click", copyResult);
+els.modeButtons.forEach((button) => {
+  button.addEventListener("click", () => switchMode(button.dataset.mode));
+});
+
+renderModeButtons();
+renderQuestion();
+renderInitialResult();

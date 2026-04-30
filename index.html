@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SQL/DE диагностика</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="https://kuzmin-dmitry.ru/" target="_blank" rel="noreferrer" aria-label="SQL/DE диагностика">
+        <span class="brand-mark">SQL</span>
+        <span>
+          <strong>SQL диагностика</strong>
+          <small>короткий разбор готовности к собесу и практике</small>
+        </span>
+      </a>
+
+      <nav class="top-links" aria-label="Ссылки на курсы">
+        <a href="https://kuzmin-dmitry.ru/" target="_blank" rel="noreferrer">SQL курсы</a>
+        <a href="https://kuzmin-dmitry.ru/de_practicum" target="_blank" rel="noreferrer">DE Practicum</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Диагностика вместо гадания</p>
+        <h1>Проверь, где ты реально сыпешься в SQL.</h1>
+        <p>
+          Отдельно проверяем SQL и отдельно Data Engineering. Без каши: SQL-тест не спрашивает
+          про батчи и Airflow, а DE-тест не притворяется обычной проверкой SELECT.
+        </p>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <span>JOIN</span>
+        <span>NULL</span>
+        <span>WINDOW</span>
+        <span>CTE</span>
+      </div>
+    </section>
+
+    <section class="mode-switch" aria-label="Выбор диагностики">
+      <button class="mode-button active" data-mode="sql" type="button">
+        <span>SQL</span>
+        <strong>Собесы, задачи, edge cases</strong>
+      </button>
+      <button class="mode-button" data-mode="de" type="button">
+        <span>DE</span>
+        <strong>Пайплайны, Spark, Airflow, DWH</strong>
+      </button>
+    </section>
+
+    <section class="workspace" aria-label="Диагностика">
+      <section class="panel question-panel">
+        <div class="progress-bar" aria-label="Прогресс диагностики">
+          <span id="diagnosticProgressBar"></span>
+        </div>
+
+        <div class="question-meta">
+          <p class="eyebrow" id="questionProgress">Вопрос 1 из 14</p>
+          <p class="source-note" id="questionSource"></p>
+        </div>
+
+        <h2 id="questionTitle">Диагностика загружается</h2>
+        <pre id="questionCodeWrap"><code id="questionSql"></code></pre>
+
+        <div class="answer-list" id="answerList"></div>
+
+        <div class="actions">
+          <button class="secondary-action" id="restartDiagnostic" type="button">Начать заново</button>
+          <button class="primary-action" id="nextQuestion" type="button" disabled>Выбери ответ</button>
+        </div>
+
+        <p class="feedback" id="answerFeedback" aria-live="polite"></p>
+      </section>
+
+      <aside class="panel result-panel" aria-label="Результат">
+        <div class="score-ring" id="diagnosticScore" aria-label="Текущий результат">0%</div>
+        <p class="eyebrow">Результат</p>
+        <h2 id="diagnosisTitle">Диагноз появится после ответов</h2>
+        <p id="diagnosisCopy">
+          Результат считается только после подтверждения ответа. Обычный клик пока ничего не засчитывает.
+        </p>
+
+        <div class="recommendation-block">
+          <h3>Что подтянуть</h3>
+          <ul id="studyList">
+            <li>Ответь на вопросы, и здесь появятся конкретные слабые места.</li>
+          </ul>
+        </div>
+
+        <div class="course-card">
+          <p class="eyebrow">Рекомендуемый маршрут</p>
+          <h3 id="courseTitle">Сначала диагностика</h3>
+          <p id="courseCopy">Ссылка на курс появится после результата.</p>
+          <a class="primary-action link-action" id="courseLink" href="https://kuzmin-dmitry.ru/" target="_blank" rel="noreferrer">Открыть курс</a>
+        </div>
+
+        <div class="result-actions">
+          <button class="secondary-action" id="copyResult" type="button" disabled>Скопировать результат</button>
+        </div>
+        <p class="feedback" id="resultStatus" aria-live="polite"></p>
+      </aside>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
