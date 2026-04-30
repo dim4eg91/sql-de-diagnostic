@@ -21,9 +21,15 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
-  min-height: 100vh;
+  min-width: 320px;
+  min-height: 100svh;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at 10% 0%, rgba(199, 111, 46, 0.16), transparent 28rem),
     radial-gradient(circle at 90% 8%, rgba(22, 100, 90, 0.16), transparent 30rem),
@@ -123,6 +129,12 @@ a {
   margin-bottom: 24px;
 }
 
+.hero > *,
+.mode-switch > *,
+.workspace > * {
+  min-width: 0;
+}
+
 .mode-switch {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -178,6 +190,7 @@ h2,
 h3,
 p {
   margin-top: 0;
+  overflow-wrap: anywhere;
 }
 
 h1 {
@@ -271,6 +284,7 @@ li {
 }
 
 .panel {
+  min-width: 0;
   border: 1px solid rgba(222, 212, 196, 0.92);
   border-radius: 24px;
   background: rgba(255, 253, 248, 0.92);
@@ -279,6 +293,9 @@ li {
 }
 
 .question-panel {
+  min-height: 680px;
+  display: flex;
+  flex-direction: column;
   padding: clamp(18px, 3.5vw, 32px);
 }
 
@@ -320,7 +337,9 @@ li {
 }
 
 pre {
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   margin: 0 0 18px;
   padding: 16px;
   border-radius: 18px;
@@ -334,6 +353,7 @@ pre {
 .answer-list {
   display: grid;
   gap: 10px;
+  align-content: start;
 }
 
 .answer-list button {
@@ -346,6 +366,11 @@ pre {
   cursor: pointer;
   text-align: left;
   transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.answer-list button span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .answer-list button:hover:not(:disabled) {
@@ -406,6 +431,10 @@ pre {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 18px;
+}
+
+.question-panel .actions {
+  margin-top: auto;
 }
 
 .primary-action,
@@ -546,16 +575,19 @@ ul {
   .result-panel {
     position: static;
   }
+
+  .question-panel {
+    min-height: auto;
+  }
 }
 
 @media (max-width: 640px) {
   .app-shell {
-    width: min(100% - 22px, 1160px);
-    padding-top: 12px;
+    width: min(100% - 16px, 1160px);
+    padding: 8px 0 28px;
   }
 
   .topbar,
-  .top-links,
   .actions,
   .result-actions,
   .question-meta {
@@ -567,13 +599,171 @@ ul {
     text-align: left;
   }
 
+  .top-links {
+    display: none;
+  }
+
   .top-links a,
   .primary-action,
   .secondary-action {
     width: 100%;
   }
 
+  .brand {
+    align-items: flex-start;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    font-size: 13px;
+  }
+
+  .brand small {
+    max-width: 220px;
+  }
+
+  .hero {
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
   h1 {
-    font-size: 34px;
+    font-size: clamp(27px, 8vw, 32px);
+    line-height: 1.06;
+  }
+
+  h2 {
+    font-size: clamp(21px, 6vw, 25px);
+  }
+
+  .hero p {
+    font-size: 15px;
+  }
+
+  .hero-visual {
+    display: none;
+  }
+
+  .mode-switch,
+  .workspace {
+    gap: 10px;
+  }
+
+  .mode-button {
+    padding: 13px 14px;
+    border-radius: 16px;
+  }
+
+  .mode-button strong {
+    font-size: 14px;
+  }
+
+  .panel {
+    border-radius: 18px;
+  }
+
+  .question-panel,
+  .result-panel {
+    padding: 16px;
+  }
+
+  .question-panel {
+    min-height: calc(100svh - 16px);
+  }
+
+  pre {
+    margin-bottom: 14px;
+    padding: 13px;
+    border-radius: 14px;
+    font-size: 12px;
+  }
+
+  .answer-list {
+    gap: 8px;
+  }
+
+  .answer-list button {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 10px;
+    min-height: 54px;
+    padding: 11px 12px;
+    border-radius: 13px;
+    font-size: 14px;
+  }
+
+  .answer-marker {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    margin-top: 14px;
+  }
+
+  .feedback {
+    min-height: 44px;
+    margin-top: 10px;
+    font-size: 14px;
+  }
+
+  .score-ring {
+    width: 96px;
+    height: 96px;
+    margin-bottom: 14px;
+    font-size: 22px;
+  }
+
+  .course-card,
+  .final-summary,
+  .final-course {
+    border-radius: 16px;
+  }
+
+  .final-summary {
+    gap: 14px;
+    padding: 15px;
+  }
+
+  .final-summary-head {
+    grid-template-columns: 1fr;
+  }
+
+  .final-score {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    font-size: 17px;
+  }
+}
+
+@media (max-width: 420px) {
+  .question-meta {
+    gap: 4px;
+  }
+
+  .eyebrow,
+  .source-note {
+    font-size: 11px;
+  }
+
+  .question-panel,
+  .result-panel {
+    padding: 14px;
+  }
+
+  .answer-list button {
+    font-size: 13px;
+  }
+}
+
+@media (hover: none) {
+  .mode-button:hover,
+  .answer-list button:hover:not(:disabled) {
+    transform: none;
   }
 }
